@@ -1,7 +1,7 @@
-- using go to implement the concept of bloom filter
-- bloom filter is, in simple word, a array+ multiple hash functions
-- the hash functions to compute hash value of a target
-- the array used to stored the result of hash functions
+- Using go to implement the concept of bloom filter
+- Bloom filter is, in simple word, array+ multiple hash functions to check if something presented or not
+- Hash functions: to compute hash values of a target
+- Array: to stored the result of hash functions
 - when checking, we compute the hash values using hash function
     - then if all bit of hash values present in array: maybe present
     - if any bit not present: 100% not present
@@ -10,7 +10,7 @@
     - check malicious URL
     - check if user have read a article
 - advantage
-    - fast and memory efficient ( u just need 1 array to save so many thing!)
+    - fast and memory efficient ( just need 1 array to save so many thing!)
 
 - formula 
     - m: bit array size  
