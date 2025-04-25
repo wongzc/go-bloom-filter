@@ -37,7 +37,7 @@ func main() {
 				f.Set(str)
 			} else if cmd == "g" {
 				if f.Get(str) {
-					fmt.Printf("Possibly in set with %.2f%% confidence\n", f.CalFPR())
+					fmt.Printf("Possibly in set with %.2f%% confidence\n", 100.0-f.CalFPR())
 				} else {
 					fmt.Println("Definitely not in set")
 				}
