@@ -3,27 +3,25 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"hash/fnv"
 	"math"
 	"os"
 	"strings"
+	"github.com/cespare/xxhash/v2"
 )
 
 func hash1(data string) uint32 {
-	h := fnv.New32a()
-	h.Write([]byte(data))
-	return h.Sum32()
+	return uint32(xxhash.Sum64String(data))
 }
 
 func hash2(data string) uint32 {
-	h := fnv.New32()
-	h.Write([]byte(data))
+	h := xxhash.New()
+    h.Write([]byte(data + "salt")) // change a bit to get a different hash
 
-	val := h.Sum32() // to avoid h2 =2, which may cause all the value in hashed is the same
+	val := h.Sum64() // to avoid h2 =2, which may cause all the value in hashed is the same
 	if val ==0 {
 		val=1
 	}
-	return val
+	return uint32(val)
 }
 
 func getHashes(data string, hash_function_count int, array_size uint32) []uint32 { // using double hashing with the data and index
