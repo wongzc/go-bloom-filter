@@ -25,3 +25,9 @@ $$
     - n: number of item that going to save  
     - p: acceptable false positive rate  
     - k: number of hash function  
+
+- Feature:
+    - use xxHash for optimum speed, collision rate, distribution
+    - use byte slices instead of bool slice to compress memory usage to 1/8
+    - use double hashing of k times with index to achieve k of hash values
+    - dynamiccaly set slice size and hash function k by user required acceptable false value rate and exepected item store
