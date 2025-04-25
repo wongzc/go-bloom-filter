@@ -18,7 +18,12 @@ func hash1(data string) uint32 {
 func hash2(data string) uint32 {
 	h := fnv.New32()
 	h.Write([]byte(data))
-	return h.Sum32()
+
+	val := h.Sum32() // to avoid h2 =2, which may cause all the value in hashed is the same
+	if val ==0 {
+		val=1
+	}
+	return val
 }
 
 func getHashes(data string, hash_function_count int, array_size uint32) []uint32 { // using double hashing with the data and index
