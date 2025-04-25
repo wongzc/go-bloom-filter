@@ -17,7 +17,7 @@ func hash2(data string) uint32 {
 	h := xxhash.New()
     h.Write([]byte(data + "salt")) // change a bit to get a different hash
 
-	val := h.Sum64() // to avoid h2 =2, which may cause all the value in hashed is the same
+	val := h.Sum64() // to avoid h2 = 0, which may cause all the value in hashes slice become the same
 	if val ==0 {
 		val=1
 	}
