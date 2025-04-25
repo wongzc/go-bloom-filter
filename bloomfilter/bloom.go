@@ -42,24 +42,37 @@ func (f *Filter) Get(s string) bool {
 }
 
 func (f *Filter) CalFPR() float64 {
-	m := float64(f.ArraySize * 8) // total bits
+	m := float64(f.ArraySize)
 	k := float64(f.HashFunctionCount)
 	n := float64(f.ElementCount)
 
 	FPR := math.Pow(1-math.Exp(-k*n/m), k)
 	return FPR * 100
 }
+
+func (f *Filter) BitSaturation() float64 {
+	count := 0
+	for _, b := range f.BitField {
+		for i := 0; i < 8; i++ {
+			if b&(1<<i) != 0 {
+				count++
+			}
+		}
+	}
+	return float64(count) / float64(len(f.BitField)*8) * 100
+}
+
 func NewFilter(itemCount float64, accuracy float64) *Filter {
 	// compute array size and has function required based on acceptable false positive and expected item count
 	ArraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2)) + 1
 	hashCount := int(float64(ArraySize)/itemCount*math.Log(2)) + 1
-	byteSize := ArraySize/8 + 1 // convert to byte here
+	byteArraySize := ArraySize/8 + 1 // convert to byte here
 
 	return &Filter{
-		BitField:          make([]byte, byteSize),
-		HashFunctionCount: hashCount,
-		ArraySize:         byteSize,
-		ElementCount:      0,
+		BitField:          	make([]byte, byteArraySize),
+		HashFunctionCount: 	hashCount,
+		ArraySize:         	ArraySize,
+		ElementCount:      	0,
 	}
 }
 

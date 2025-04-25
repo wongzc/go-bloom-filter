@@ -20,7 +20,7 @@ func main() {
 	}
 
 	f := bloomfilter.NewFilter(item_count, accuracy)
-	fmt.Printf("Using %d hash functions and %d bytes.\n", f.HashFunctionCount, f.ArraySize)
+	fmt.Printf("Using %d hash functions and %d bytes.\n", f.HashFunctionCount, f.ArraySize/8+1)
 
 	for {
 		fmt.Print("[s=set, g=get, x=exit]: ")
