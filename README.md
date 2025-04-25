@@ -13,6 +13,7 @@
     - fast and memory efficient ( just need 1 array to save so many thing!)
 
 - Formula 
+
 $$
 m = -\frac{n \cdot \ln p}{(\ln 2)^2}
 $$
