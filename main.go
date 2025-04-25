@@ -3,10 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/cespare/xxhash/v2"
 	"math"
 	"os"
 	"strings"
-	"github.com/cespare/xxhash/v2"
 )
 
 func hash1(data string) uint32 {
@@ -15,61 +15,73 @@ func hash1(data string) uint32 {
 
 func hash2(data string) uint32 {
 	h := xxhash.New()
-    h.Write([]byte(data + "salt")) // change a bit to get a different hash
+	h.Write([]byte(data + "salt")) // change a bit to get a different hash
 
 	val := h.Sum64() // to avoid h2 = 0, which may cause all the value in hashes slice become the same
-	if val ==0 {
-		val=1
+	if val == 0 {
+		val = 1
 	}
 	return uint32(val)
 }
 
-func getHashes(data string, hash_function_count int, array_size uint32) []uint32 { // using double hashing with the data and index
-	hashes := make([]uint32, hash_function_count)
+func getHashes(data string, hashFunctionCount int, arraySize uint32) []uint32 { // using double hashing with the data and index
+	hashes := make([]uint32, hashFunctionCount)
 	h1 := hash1(data)
 	h2 := hash2(data)
 
-	for i := 0; i < hash_function_count; i++ {
-		combined := (h1 + uint32(i)*h2) % array_size
+	for i := 0; i < hashFunctionCount; i++ {
+		combined := (h1 + uint32(i)*h2) % arraySize
 		hashes[i] = combined
 	}
 	return hashes
 }
 
-type filter struct {
-	bitfield            []bool
-	hash_function_count int
-	array_size          uint32
+type Filter struct {
+	bitField            []byte
+	hashFunctionCount int
+	arraySize          uint32
 }
 
-func (f *filter) Set(s string) {
-	hs := getHashes(s, f.hash_function_count, f.array_size)
+func (f *Filter) Set(s string) {
+	hs := getHashes(s, f.hashFunctionCount, f.arraySize)
 	for _, pos := range hs {
-		f.bitfield[pos] = true
+		setBit(f.bitField, pos)
 	}
 
 }
 
-func (f *filter) Get(s string) bool {
-	hs := getHashes(s, f.hash_function_count, f.array_size)
+func (f *Filter) Get(s string) bool {
+	hs := getHashes(s, f.hashFunctionCount, f.arraySize)
 	for _, pos := range hs {
-		if !f.bitfield[pos] {
+		if !getBit(f.bitField, pos) {
 			return false
 		}
 	}
 	return true
 }
 
-func NewFilter(itemCount float64, accuracy float64) *filter {
+func NewFilter(itemCount float64, accuracy float64) *Filter {
 	// compute array size and has function required based on acceptable false positive and expected item count
-	arraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2)) + 1
+	arraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2))/8 + 1
 	hashCount := int(float64(arraySize)/itemCount*math.Log(2)) + 1
 
-	return &filter{
-		bitfield:            make([]bool, arraySize),
-		hash_function_count: hashCount,
-		array_size:          arraySize,
+	return &Filter{
+		bitField:            make([]byte, arraySize),
+		hashFunctionCount: hashCount,
+		arraySize:          arraySize,
 	}
+}
+
+func setBit(bitField []byte, pos uint32) {
+	byteIndex := pos / 8
+	bitOffset := pos % 8
+	bitField[byteIndex] |= 1 << bitOffset
+}
+
+func getBit(bitField []byte, pos uint32) bool {
+	byteIndex := pos / 8
+	bitOffset := pos % 8
+	return (bitField[byteIndex] & (1 << bitOffset)) != 0
 }
 
 func main() {
@@ -87,7 +99,7 @@ func main() {
 	}
 
 	f := NewFilter(item_count, accuracy)
-	fmt.Printf("Require %d hash functions and array size of %d.\n", f.hash_function_count, f.array_size)
+	fmt.Printf("Require %d hash functions and byte array size of %d.\n", f.hashFunctionCount, f.arraySize)
 
 	for {
 		fmt.Println("Enter command [s=set, g=get, x=exit]:")
