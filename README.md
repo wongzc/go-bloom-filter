@@ -12,23 +12,37 @@
 - Advantage
     - fast and memory efficient ( just need 1 array to save so many thing!)
 
-- Formula 
+- Feature of this bloom filter:
+    - use xxHash for optimum speed, collision rate, distribution
+    - use byte slices instead of bool slice to compress memory usage to 1/8
+    - use double hashing of k times with index to achieve k of hash values
+    - dynamiccaly set slice size and hash function k by user required acceptable false value rate and exepected item store
+
+- Formula for Bit Array Size
 
 $$
 m = -\frac{n \cdot \ln p}{(\ln 2)^2}
 $$
+
+    - n: number of item that going to save  
+    - p: acceptable false positive rate  
+
+- Formula for number of hash functions
 
 $$
 k = \frac{m}{n} \cdot \ln 2
 $$
 
     - m: bit array size  
-    - n: number of item that going to save  
-    - p: acceptable false positive rate  
-    - k: number of hash function  
+    - n: number of element that going to insert    
 
-- Feature:
-    - use xxHash for optimum speed, collision rate, distribution
-    - use byte slices instead of bool slice to compress memory usage to 1/8
-    - use double hashing of k times with index to achieve k of hash values
-    - dynamiccaly set slice size and hash function k by user required acceptable false value rate and exepected item store
+- Formula for False Postive Rate  (FPR)
+
+$$
+\text{FPR} \approx \left(1 - e^{-\frac{kn}{m}}\right)^k
+$$
+
+    - m : bit array size
+    - k : number of hash functions  
+    - n : number of inserted elements  
+

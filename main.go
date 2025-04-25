@@ -37,9 +37,10 @@ func getHashes(data string, hashFunctionCount int, arraySize uint32) []uint32 { 
 }
 
 type Filter struct {
-	bitField            []byte
-	hashFunctionCount int
-	arraySize          uint32
+	bitField          	[]byte
+	hashFunctionCount 	int
+	arraySize         	uint32
+	elementCount		int
 }
 
 func (f *Filter) Set(s string) {
@@ -47,6 +48,7 @@ func (f *Filter) Set(s string) {
 	for _, pos := range hs {
 		setBit(f.bitField, pos)
 	}
+	f.elementCount++
 
 }
 
@@ -60,15 +62,21 @@ func (f *Filter) Get(s string) bool {
 	return true
 }
 
+func (f *Filter)calFPR() float64 {
+	FPR:=math.Pow(1-math.Exp(-float64(f.hashFunctionCount)*float64(f.elementCount)/float64(f.arraySize)/8.0),float64(f.hashFunctionCount))
+	return (1-FPR)*100
+}
 func NewFilter(itemCount float64, accuracy float64) *Filter {
 	// compute array size and has function required based on acceptable false positive and expected item count
-	arraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2))/8 + 1
+	arraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2)) + 1
 	hashCount := int(float64(arraySize)/itemCount*math.Log(2)) + 1
+	byteSize := arraySize/8+1 // convert to byte here
 
 	return &Filter{
-		bitField:            make([]byte, arraySize),
-		hashFunctionCount: hashCount,
-		arraySize:          arraySize,
+		bitField:            make([]byte, byteSize),
+		hashFunctionCount: 	hashCount,
+		arraySize:          byteSize,
+		elementCount:		0,
 	}
 }
 
@@ -117,7 +125,12 @@ func main() {
 			if input == "s" {
 				f.Set(str)
 			} else {
-				fmt.Println(f.Get(str))
+				if f.Get(str) {
+					FPR:=f.calFPR()
+					fmt.Printf("%.2f%% confidence in set.\n",FPR)
+				} else {
+					fmt.Println("Definitely not in set")
+				}
 			}
 		} else {
 			fmt.Println("Unknown command. Use s, g or x.")
