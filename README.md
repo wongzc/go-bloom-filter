@@ -17,6 +17,7 @@
     - n: number of item that going to save  
     - p: acceptable false positive rate  
     - k: number of hash function  
+    
 $$
 m = -\frac{n \cdot \ln p}{(\ln 2)^2}
 $$
