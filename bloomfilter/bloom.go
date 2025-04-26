@@ -1,8 +1,17 @@
 package bloomfilter
 
 import (
-	"github.com/cespare/xxhash/v2"
+	"fmt"
 	"math"
+	"math/rand"
+
+	"github.com/cespare/xxhash/v2"
+)
+
+const (
+	resetColor  = "\033[0m"
+	redColor    = "\033[31m"
+	greenColor  = "\033[32m"
 )
 
 func hash1(data string) uint32 {
@@ -32,6 +41,7 @@ func getHashes(data string, HashFunctionCount int, ArraySize uint32) []uint32 { 
 	return hashes
 }
 
+// independent hashing, slower but slightly better bit distribution
 // func getHashes(data string, k int, m uint32) []uint32 {
 // 	hashes := make([]uint32, k)
 // 	for i := 0; i < k; i++ {
@@ -114,8 +124,32 @@ func (f *Filter) BitDistribution() float64 {
 	return variance
 }
 
-func NewFilter(itemCount float64, accuracy float64) *Filter {
-	// compute array size and has function required based on acceptable false positive and expected item count
+func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {
+	totalBits := len(f.BitField)*8
+	if sampleSize > totalBits {
+		sampleSize=totalBits
+	}
+
+	startBit:= rand.Intn(totalBits-sampleSize+1)
+
+	fmt.Printf("Colored Heatmap (bits %d to %d):\n", startBit, startBit+sampleSize-1)
+
+	for i := startBit; i < startBit+sampleSize; i++ {
+		if getBit(f.BitField, uint32(i)) {
+			fmt.Print(redColor + "█" + resetColor) // Set bit → red
+		} else {
+			fmt.Print(greenColor + "·" + resetColor) // Unset bit → green
+		}
+
+		if (i-startBit+1)%columns == 0 {
+			fmt.Println()
+		}
+	}
+	fmt.Println()
+}
+
+func NewFilter(itemCount, accuracy float64) *Filter {
+	// compute array size and hash function required based on acceptable false positive and expected item count
 	ArraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2)) + 1
 	hashCount := int(float64(ArraySize)/itemCount*math.Log(2)) + 1
 	byteArraySize := ArraySize/8 + 1 // convert to byte here

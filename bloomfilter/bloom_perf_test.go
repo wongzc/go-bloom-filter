@@ -40,7 +40,7 @@ func TestFPRHighLoad(t *testing.T) {
 	fmt.Printf("\nHash Functions Count: %d\n",filter.HashFunctionCount)
 	fmt.Printf("Array Size: %d\n",filter.ArraySize)
 	fmt.Printf("Bit Saturation Rate: %.4f%%\n", filter.BitSaturation())
-	fmt.Printf("Bit Distribution: %f\n\n", filter.BitDistribution())
+	fmt.Printf("Bit Distribution: %f\n", filter.BitDistribution())
 
 	// Check for false positives using unseen keys
 	falsePositives := 0
@@ -58,6 +58,8 @@ func TestFPRHighLoad(t *testing.T) {
 	if math.Abs(actualFPR-filter.CalFPR()) > 0.03 { 
 		t.Errorf("False positive rate too high: %.2f%%", actualFPR)
 	}
+
+	filter.PrintRandomBitHeatmap(1000,100)
 }
 
 func TestStressInsert(t *testing.T) {
