@@ -6,6 +6,7 @@ import (
 	"testing"
 	"math"
 	"time"
+	"go-bloom-filter/randomstring"
 )
 
 func BenchmarkInsert(b *testing.B) {
@@ -33,23 +34,26 @@ func TestFPRHighLoad(t *testing.T) {
 
 	// Insert n unique items
 	for i := 0; i < n; i++ {
-		filter.Set("data_" + strconv.Itoa(i))
+		filter.Set("data_" + strconv.Itoa(i)+randomstring.RandString())
 	}
 
-	fmt.Printf("Bit saturation: %.4f%%\n", filter.BitSaturation())
+	fmt.Printf("\nHash Functions Count: %d\n",filter.HashFunctionCount)
+	fmt.Printf("Array Size: %d\n",filter.ArraySize)
+	fmt.Printf("Bit Saturation Rate: %.4f%%\n", filter.BitSaturation())
+	fmt.Printf("Bit Distribution: %f\n\n", filter.BitDistribution())
 
 	// Check for false positives using unseen keys
 	falsePositives := 0
-	trials := 700_000
+	trials := 1_000_000
 	for i := 0; i < trials; i++ {
-		unseen := "unseen_" + strconv.Itoa(i)
+		unseen := "unseen_" + strconv.Itoa(i)+randomstring.RandString()
 		if filter.Get(unseen) {
 			falsePositives++
 		}
 	}
 
 	actualFPR := float64(falsePositives) / float64(trials) * 100
-	fmt.Printf("High Load FPR: %.4f%% (expected ~%.2f%%)\n", actualFPR, filter.CalFPR())
+	fmt.Printf("False Positive Rate: %.4f%% (expected ~%.2f%%)\n", actualFPR, filter.CalFPR())
 
 	if math.Abs(actualFPR-filter.CalFPR()) > 0.03 { 
 		t.Errorf("False positive rate too high: %.2f%%", actualFPR)
