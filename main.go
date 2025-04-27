@@ -3,10 +3,26 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/cespare/xxhash/v2"
+	"go-bloom-filter/bloomfilter"
 	"os"
 	"strings"
-	"go-bloom-filter/bloomfilter" 
 )
+
+func hash1(data string) uint32 {
+	return uint32(xxhash.Sum64String(data))
+}
+
+func hash2(data string) uint32 {
+	h := xxhash.New()
+	h.Write([]byte(data + "salt")) // change a bit to get a different hash
+
+	val := h.Sum64() // to avoid h2 = 0, which may cause all the value in hashes slice become the same
+	if val == 0 {
+		val = 1
+	}
+	return uint32(val)
+}
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
@@ -19,7 +35,7 @@ func main() {
 		return
 	}
 
-	f := bloomfilter.NewFilter(item_count, accuracy)
+	f := bloomfilter.NewFilter(item_count, accuracy, hash1, hash2)
 	fmt.Printf("Using %d hash functions and %d bytes.\n", f.HashFunctionCount, f.ArraySize/8+1)
 
 	for {
