@@ -10,14 +10,14 @@ import (
 )
 
 func BenchmarkInsert(b *testing.B) {
-	filter := NewFilter(float64(b.N), 0.01, hash1, hash2)
+	filter := New(float64(b.N), 0.01, hash1, hash2)
 	for i := 0; i < b.N; i++ {
 		filter.Set("item_" + strconv.Itoa(i))
 	}
 }
 
 func BenchmarkLookup(b *testing.B) {
-	filter := NewFilter(float64(b.N), 0.01, hash1, hash2)
+	filter := New(float64(b.N), 0.01, hash1, hash2)
 	for i := 0; i < b.N; i++ {
 		filter.Set("item_" + strconv.Itoa(i))
 	}
@@ -30,7 +30,7 @@ func BenchmarkLookup(b *testing.B) {
 
 func TestFPRHighLoad(t *testing.T) {
 	n := 1_000_000
-	filter := NewFilter(float64(n), 0.001, hash1, hash2)
+	filter := New(float64(n), 0.001, hash1, hash2)
 
 	// Insert n unique items
 	for i := 0; i < n; i++ {
@@ -66,7 +66,7 @@ func TestStressInsert(t *testing.T) {
 	start := time.Now()
 
 	n := 10_000_000
-	filter := NewFilter(float64(n), 0.01, hash1, hash2)
+	filter := New(float64(n), 0.01, hash1, hash2)
 
 	for i := 0; i < n; i++ {
 		filter.Set("stress_" + strconv.Itoa(i))

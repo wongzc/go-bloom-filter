@@ -24,6 +24,7 @@ func hash2(data string) uint32 {
 	return uint32(val)
 }
 
+// usage example
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	var item_count float64
@@ -35,7 +36,9 @@ func main() {
 		return
 	}
 
-	f := bloomfilter.NewFilter(item_count, accuracy, hash1, hash2)
+	f := bloomfilter.New(item_count, accuracy, hash1, hash2)
+	defer f.Close()
+	
 	fmt.Printf("Using %d hash functions and %d bytes.\n", f.HashFunctionCount, f.ArraySize/8+1)
 
 	for {

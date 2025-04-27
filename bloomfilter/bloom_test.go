@@ -20,7 +20,7 @@ func hash2(data string) uint32 {
 	return uint32(val)
 }
 func TestBloomFilterBasic(t *testing.T) {
-	filter := NewFilter(1000, 0.01, hash1, hash2)
+	filter := New(1000, 0.01, hash1, hash2)
 
 	// Insert some elements
 	filter.Set("apple")

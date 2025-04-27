@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"sync"
+	"time"
 )
 
 const (
@@ -21,30 +22,19 @@ type Filter struct {
 	HashFunc1         func(string) uint32
 	HashFunc2         func(string) uint32
 	mu                sync.RWMutex
+
+	setChan  chan string
+	quitChan chan struct{}
 }
 
-func (f *Filter) getHashes(data string) []uint32 { // using double hashing with the data and index
-	hashes := make([]uint32, f.HashFunctionCount)
-	h1 := f.HashFunc1(data)
-	h2 := f.HashFunc2(data)
-
-	for i := 0; i < f.HashFunctionCount; i++ {
-		combined := (h1 + uint32(i)*h2) % f.ArraySize
-		hashes[i] = combined
-	}
-	return hashes
-}
+// =============== PUBLIC METHODS ===============
 
 func (f *Filter) Set(s string) {
-	hs := f.getHashes(s)
-
-	f.mu.Lock()         //lock when setting bit
-	defer f.mu.Unlock() // ensure unlock it even panic!!
-
-	for _, pos := range hs {
-		setBit(f.BitField, pos)
+	select {
+	case f.setChan <- s:
+	default:
+		// drop out if fail... logic later
 	}
-	f.ElementCount++
 }
 
 func (f *Filter) Get(s string) bool {
@@ -61,25 +51,8 @@ func (f *Filter) Get(s string) bool {
 	return true
 }
 
-func (f *Filter) SetBatch(strings []string) {
-	// batch setting method to save overhead from lock unlock
-	bitPositions := []uint32{}
-
-	for _, s := range strings {
-		hs := f.getHashes(s)
-		bitPositions = append(bitPositions, hs...)
-	}
-
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	for _, pos := range bitPositions {
-		setBit(f.BitField, pos)
-	}
-	f.ElementCount += len(strings)
-}
-
 func (f *Filter) CalFPR() float64 {
+	// theoritical FPR based on Formula
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
@@ -162,19 +135,93 @@ func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {
 	fmt.Println()
 }
 
-func NewFilter(itemCount, accuracy float64, hashFunc1, hashFunc2 func(string) uint32) *Filter {
+func (f *Filter) Close() {
+	close(f.quitChan)
+}
+
+func New(itemCount, accuracy float64, hashFunc1, hashFunc2 func(string) uint32) *Filter {
 	// compute array size and hash function required based on acceptable false positive and expected item count
 	ArraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2)) + 1
 	hashCount := int(float64(ArraySize)/itemCount*math.Log(2)) + 1
 	byteArraySize := ArraySize/8 + 1 // convert to byte here
 
-	return &Filter{
+	f := &Filter{
 		BitField:          make([]byte, byteArraySize),
 		HashFunctionCount: hashCount,
 		ArraySize:         ArraySize,
 		ElementCount:      0,
 		HashFunc1:         hashFunc1,
 		HashFunc2:         hashFunc2,
+		setChan:           make(chan string, 10000),
+		quitChan:          make(chan struct{}),
+	}
+
+	go f.runBackgroundSetter(100, 100*time.Millisecond)
+	return f
+}
+
+// =============== PRIVATE METHODS ===============
+
+func (f *Filter) setBatch(strings []string) {
+	// batch setting method to save overhead from lock unlock
+	bitPositions := []uint32{}
+
+	for _, s := range strings {
+		hs := f.getHashes(s)
+		bitPositions = append(bitPositions, hs...)
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for _, pos := range bitPositions {
+		setBit(f.BitField, pos)
+	}
+	f.ElementCount += len(strings)
+}
+
+func (f *Filter) getHashes(data string) []uint32 { // using double hashing with the data and index
+	hashes := make([]uint32, f.HashFunctionCount)
+	h1 := f.HashFunc1(data)
+	h2 := f.HashFunc2(data)
+
+	for i := 0; i < f.HashFunctionCount; i++ {
+		combined := (h1 + uint32(i)*h2) % f.ArraySize
+		hashes[i] = combined
+	}
+	return hashes
+}
+
+func (f *Filter) runBackgroundSetter(batchSize int, flushInterval time.Duration) {
+	batch := make([]string, 0, batchSize)
+	timer := time.NewTimer(flushInterval)
+
+	for {
+		select {
+		case s := <-f.setChan:
+			batch = append(batch, s)
+			if len(batch) >= batchSize {
+				f.setBatch(batch)
+				batch = batch[:0] //reset
+
+				if !timer.Stop() { // stop the timer, if false, timer is expired and issued through timer.C
+					<-timer.C // drain it so that can reset
+				}
+				timer.Reset(flushInterval)
+			}
+		case <-timer.C:
+			if len(batch) > 0 {
+				f.setBatch(batch)
+				batch = batch[:0]
+			}
+			timer.Reset(flushInterval)
+
+		case <-f.quitChan:
+			if len(batch) > 0 {
+				f.setBatch(batch)
+			}
+			return
+		}
 	}
 }
 
