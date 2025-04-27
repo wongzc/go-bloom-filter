@@ -23,22 +23,22 @@ type Filter struct {
 	mu                sync.RWMutex
 }
 
-func (f *Filter) getHashes(data string, HashFunctionCount int, ArraySize uint32) []uint32 { // using double hashing with the data and index
-	hashes := make([]uint32, HashFunctionCount)
+func (f *Filter) getHashes(data string) []uint32 { // using double hashing with the data and index
+	hashes := make([]uint32, f.HashFunctionCount)
 	h1 := f.HashFunc1(data)
 	h2 := f.HashFunc2(data)
 
-	for i := 0; i < HashFunctionCount; i++ {
-		combined := (h1 + uint32(i)*h2) % ArraySize
+	for i := 0; i < f.HashFunctionCount; i++ {
+		combined := (h1 + uint32(i)*h2) % f.ArraySize
 		hashes[i] = combined
 	}
 	return hashes
 }
 
 func (f *Filter) Set(s string) {
-	hs := f.getHashes(s, f.HashFunctionCount, f.ArraySize)
+	hs := f.getHashes(s)
 
-	f.mu.Lock() //lock when setting bit
+	f.mu.Lock()         //lock when setting bit
 	defer f.mu.Unlock() // ensure unlock it even panic!!
 
 	for _, pos := range hs {
@@ -48,7 +48,7 @@ func (f *Filter) Set(s string) {
 }
 
 func (f *Filter) Get(s string) bool {
-	hs := f.getHashes(s, f.HashFunctionCount, f.ArraySize)
+	hs := f.getHashes(s)
 
 	f.mu.RLock() // read lock it
 	defer f.mu.RUnlock()
@@ -59,6 +59,24 @@ func (f *Filter) Get(s string) bool {
 		}
 	}
 	return true
+}
+
+func (f *Filter) SetBatch(strings []string) {
+	// batch setting method to save overhead from lock unlock
+	bitPositions := []uint32{}
+
+	for _, s := range strings {
+		hs := f.getHashes(s)
+		bitPositions = append(bitPositions, hs...)
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for _, pos := range bitPositions {
+		setBit(f.BitField, pos)
+	}
+	f.ElementCount += len(strings)
 }
 
 func (f *Filter) CalFPR() float64 {
@@ -76,7 +94,7 @@ func (f *Filter) CalFPR() float64 {
 func (f *Filter) BitSaturation() float64 {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	count := 0
 	for _, b := range f.BitField {
 		for i := 0; i < 8; i++ {
@@ -91,7 +109,7 @@ func (f *Filter) BitSaturation() float64 {
 func (f *Filter) BitDistribution() float64 {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	byteBitCounts := make([]int, len(f.BitField))
 	for i, b := range f.BitField {
 		for j := 0; j < 8; j++ {
@@ -117,7 +135,7 @@ func (f *Filter) BitDistribution() float64 {
 	return variance
 }
 
-func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {	
+func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {
 	totalBits := len(f.BitField) * 8
 	if sampleSize > totalBits {
 		sampleSize = totalBits
@@ -126,7 +144,7 @@ func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {
 	startBit := rand.Intn(totalBits - sampleSize + 1)
 
 	fmt.Printf("Colored Heatmap (bits %d to %d):\n", startBit, startBit+sampleSize-1)
-	
+
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 

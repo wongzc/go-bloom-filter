@@ -1,11 +1,26 @@
 package bloomfilter
 
 import (
+	"github.com/cespare/xxhash/v2"
 	"testing"
 )
 
+func hash1(data string) uint32 {
+	return uint32(xxhash.Sum64String(data))
+}
+
+func hash2(data string) uint32 {
+	h := xxhash.New()
+	h.Write([]byte(data + "salt")) // change a bit to get a different hash
+
+	val := h.Sum64() // to avoid h2 = 0, which may cause all the value in hashes slice become the same
+	if val == 0 {
+		val = 1
+	}
+	return uint32(val)
+}
 func TestBloomFilterBasic(t *testing.T) {
-	filter := NewFilter(1000, 0.01)
+	filter := NewFilter(1000, 0.01, hash1, hash2)
 
 	// Insert some elements
 	filter.Set("apple")
