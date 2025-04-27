@@ -30,6 +30,7 @@ type Filter struct {
 }
 
 // =============== PUBLIC METHODS ===============
+
 func New(itemCount, accuracy float64, hashFunc1, hashFunc2 func(string) uint32) *Filter {
 	// compute array size and hash function required based on acceptable false positive and expected item count
 	ArraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2)) + 1
@@ -72,6 +73,12 @@ func (f *Filter) Get(s string) bool {
 	}
 	return true
 }
+
+func (f *Filter) Close() {
+	close(f.quitChan)
+}
+
+// =============== PUBLIC METHODS FOR MONITORING===============
 
 func (f *Filter) CalFPR() float64 {
 	// theoritical FPR based on Formula
@@ -159,10 +166,6 @@ func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {
 
 func (f *Filter) DroppedCount() int64 {
 	return atomic.LoadInt64(&f.dropCount)
-}
-
-func (f *Filter) Close() {
-	close(f.quitChan)
 }
 
 // =============== PRIVATE METHODS ===============

@@ -1,3 +1,4 @@
+// Package randomstring provides utilities to generate random strings for testing purposes.
 package randomstring
 
 import (
