@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sync"
 )
 
 const (
@@ -19,6 +20,7 @@ type Filter struct {
 	ElementCount      int
 	HashFunc1         func(string) uint32
 	HashFunc2         func(string) uint32
+	mu                sync.RWMutex
 }
 
 func (f *Filter) getHashes(data string, HashFunctionCount int, ArraySize uint32) []uint32 { // using double hashing with the data and index
@@ -35,15 +37,22 @@ func (f *Filter) getHashes(data string, HashFunctionCount int, ArraySize uint32)
 
 func (f *Filter) Set(s string) {
 	hs := f.getHashes(s, f.HashFunctionCount, f.ArraySize)
+
+	f.mu.Lock() //lock when setting bit
+	defer f.mu.Unlock() // ensure unlock it even panic!!
+
 	for _, pos := range hs {
 		setBit(f.BitField, pos)
 	}
 	f.ElementCount++
-
 }
 
 func (f *Filter) Get(s string) bool {
 	hs := f.getHashes(s, f.HashFunctionCount, f.ArraySize)
+
+	f.mu.RLock() // read lock it
+	defer f.mu.RUnlock()
+
 	for _, pos := range hs {
 		if !getBit(f.BitField, pos) {
 			return false
@@ -53,6 +62,9 @@ func (f *Filter) Get(s string) bool {
 }
 
 func (f *Filter) CalFPR() float64 {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
 	m := float64(f.ArraySize)
 	k := float64(f.HashFunctionCount)
 	n := float64(f.ElementCount)
@@ -62,6 +74,9 @@ func (f *Filter) CalFPR() float64 {
 }
 
 func (f *Filter) BitSaturation() float64 {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	
 	count := 0
 	for _, b := range f.BitField {
 		for i := 0; i < 8; i++ {
@@ -74,6 +89,9 @@ func (f *Filter) BitSaturation() float64 {
 }
 
 func (f *Filter) BitDistribution() float64 {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	
 	byteBitCounts := make([]int, len(f.BitField))
 	for i, b := range f.BitField {
 		for j := 0; j < 8; j++ {
@@ -99,7 +117,7 @@ func (f *Filter) BitDistribution() float64 {
 	return variance
 }
 
-func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {
+func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {	
 	totalBits := len(f.BitField) * 8
 	if sampleSize > totalBits {
 		sampleSize = totalBits
@@ -108,6 +126,9 @@ func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {
 	startBit := rand.Intn(totalBits - sampleSize + 1)
 
 	fmt.Printf("Colored Heatmap (bits %d to %d):\n", startBit, startBit+sampleSize-1)
+	
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 
 	for i := startBit; i < startBit+sampleSize; i++ {
 		if getBit(f.BitField, uint32(i)) {
