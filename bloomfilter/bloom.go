@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -22,18 +23,39 @@ type Filter struct {
 	HashFunc1         func(string) uint32
 	HashFunc2         func(string) uint32
 	mu                sync.RWMutex
+	dropCount         int64
 
 	setChan  chan string
 	quitChan chan struct{}
 }
 
 // =============== PUBLIC METHODS ===============
+func New(itemCount, accuracy float64, hashFunc1, hashFunc2 func(string) uint32) *Filter {
+	// compute array size and hash function required based on acceptable false positive and expected item count
+	ArraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2)) + 1
+	hashCount := int(float64(ArraySize)/itemCount*math.Log(2)) + 1
+	byteArraySize := ArraySize/8 + 1 // convert to byte here
+
+	f := &Filter{
+		BitField:          make([]byte, byteArraySize),
+		HashFunctionCount: hashCount,
+		ArraySize:         ArraySize,
+		HashFunc1:         hashFunc1,
+		HashFunc2:         hashFunc2,
+		setChan:           make(chan string, 10000),
+		quitChan:          make(chan struct{}),
+	}
+
+	go f.runBackgroundSetter(100, 100*time.Millisecond)
+	return f
+}
 
 func (f *Filter) Set(s string) {
 	select {
 	case f.setChan <- s:
 	default:
-		// drop out if fail... logic later
+		// if channel full
+		atomic.AddInt64(&f.dropCount, 1) // use atomic to write, then only use atomic to read/write to avoid race condition
 	}
 }
 
@@ -135,29 +157,12 @@ func (f *Filter) PrintRandomBitHeatmap(sampleSize, columns int) {
 	fmt.Println()
 }
 
-func (f *Filter) Close() {
-	close(f.quitChan)
+func (f *Filter) DroppedCount() int64 {
+	return atomic.LoadInt64(&f.dropCount)
 }
 
-func New(itemCount, accuracy float64, hashFunc1, hashFunc2 func(string) uint32) *Filter {
-	// compute array size and hash function required based on acceptable false positive and expected item count
-	ArraySize := uint32(-itemCount*math.Log(accuracy)/math.Pow(math.Log(2), 2)) + 1
-	hashCount := int(float64(ArraySize)/itemCount*math.Log(2)) + 1
-	byteArraySize := ArraySize/8 + 1 // convert to byte here
-
-	f := &Filter{
-		BitField:          make([]byte, byteArraySize),
-		HashFunctionCount: hashCount,
-		ArraySize:         ArraySize,
-		ElementCount:      0,
-		HashFunc1:         hashFunc1,
-		HashFunc2:         hashFunc2,
-		setChan:           make(chan string, 10000),
-		quitChan:          make(chan struct{}),
-	}
-
-	go f.runBackgroundSetter(100, 100*time.Millisecond)
-	return f
+func (f *Filter) Close() {
+	close(f.quitChan)
 }
 
 // =============== PRIVATE METHODS ===============
