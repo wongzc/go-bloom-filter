@@ -1,4 +1,4 @@
-module go-bloom-filter
+module github.com/wongzc/go-bloom-filter
 
 go 1.23.1
 
