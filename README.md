@@ -156,3 +156,21 @@ BenchmarkMemoryUsage-16                 19393624                55.59 ns/op     
 - Lookup operations complete in ~130ns.
 - Minimal memory overhead and allocations.
 - False positive rate matches theoretical prediction very closely.
+
+## Others
+
+- Counting Bloom Filter
+    - Allow Deletion from Bloom Filter
+    - **More Memory Usage**: Use Counter to store, so memory is 4~16x higher than bloom filter
+    - **Counter Overflow**: Risk of counter overflow if too many insertion at the same index
+    - **Slow Performance**: Instead of flipping bits, need to read -> increase/decrease counter -> write to counter
+    - **False Negative**: If mistakenly delete something that never insert, to avoid this, need to: 
+        1. Check Couting Bloom Filter, proceed if it show "might exist"
+        2. Proceed if cache show exist
+        3. Delete and decrement Bloom Counter
+
+- Cuckoo Filter
+    - Store short hash (fingerprint) instead of bit
+    - Allow deletion of item
+    - Better lookup performance
+    - Use lesser space in most case
