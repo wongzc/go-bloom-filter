@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/cespare/xxhash/v2"
-	"go-bloom-filter/bloomfilter"
+	"github.com/wongzc/go-bloom-filter/bloomfilter"
 	"os"
 	"strings"
 )

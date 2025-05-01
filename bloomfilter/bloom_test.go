@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 	"fmt"
-	"go-bloom-filter/randomstring"
+	"github.com/wongzc/go-bloom-filter/randomstring"
 	"math"
 	"strconv"
 )
